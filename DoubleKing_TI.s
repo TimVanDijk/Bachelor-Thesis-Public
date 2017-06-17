@@ -203,22 +203,6 @@ $label EarlyShift
 	MEND
 
 	MACRO
-$label LateShift
-	mov r0, r0, ror #2
-	mov r1, r1, ror #23
-	mov r2, r2, ror #13
-	mov r3, r3, ror #4
-	mov r4, r4, ror #28
-	mov r5, r5, ror #21
-	mov r6, r6, ror #15
-	mov r7, r7, ror #10
-	mov r8, r8, ror #6
-	mov r9, r9, ror #3
-	mov r10, r10, ror #1
-	;mov r11, r11, ror #0
-	MEND
-
-	MACRO
 $label Diffusion
 	; First we compute r0 xor r1 xor ... xor r11 and store it in r12.
 	; We will use this in computing a6-a11.
@@ -758,6 +742,8 @@ $label SBoxSlice $offset0, $offset1, $offset2
 	
 	MACRO
 $label CombineShares
+; Retrieves all three shares from memory and adds them together.
+; The result is in the r0-r11.
 	ldr r12, =in_0
 	ldr r13, =in_1
 	ldr r14, =in_2
@@ -815,9 +801,9 @@ $label Swap $arg0, $arg1
 	eor $arg0, $arg0, $arg1
 	MEND
 	
-; Probably can be made redundant by doing only imaginary swaps
 	MACRO
 $label ReverseState
+; Reverses order of words in the data
 	Swap r0, r11
 	Swap r1, r10
 	Swap r2, r9
@@ -870,9 +856,7 @@ sbox
 	ldr r15, [r13]
 
 early_shift
-; PRE: in_2 is in r0-r11
-; Does early shift on ALL shares
-; POST: in_1 is in r0-r11
+; Does early shift on the share that currently is in memory.
 
 	; Store return address to memory
 	ldr r13, =ret_addr
@@ -888,9 +872,7 @@ waypoint
 	b init
 
 lateshift_diffusion
-; PRE: in_1 is in r0-r11.
-; Does diffusion on ALL shares
-; POST: in_2 is in r0-r11.
+; Does late shift + diffusion on the share that currently is in memory.
 
 	; Store return address to memory
 	ldr r13, =ret_addr
@@ -904,53 +886,13 @@ lateshift_diffusion
 
 
 diffusion
-; PRE: in_1 is in r0-r11.
-; Does diffusion on ALL shares
-; POST: in_2 is in r0-r11.
+; Does diffusion on the share that currently is in memory.
 
 	; Store return address to memory
 	ldr r13, =ret_addr
 	str r14, [r13]
 	
 	Diffusion
-	
-	; Return to saved return address
-	ldr r13, =ret_addr
-	ldr r15, [r13]
-
-late_shift
-; Does late shift on ALL shares
-	
-	; Store return address to memory
-	ldr r13, =ret_addr
-	str r14, [r13]
-	
-	; Do late shift
-	; Load in_2.
-	ldr r12, =in_0
-	ldr r13, =in_2
-	ldm r13, {r0-r11}
-	
-	; Late shift on in_2
-	LateShift
-	
-	; Store in_2. Load in_0.
-	stm r13, {r0-r11}
-	ldm r12, {r0-r11}
-	
-	; Late shift on in_0
-	LateShift
-	
-	; Store in_0. Load in_1.
-	ldr r13, =in_1
-	stm r12, {r0-r11}
-	ldm r13, {r0-r11}
-	
-	; Early shift on in_1
-	LateShift
-	
-	ldr r13, =in_1
-	stm r13, {r0-r11}
 	
 	; Return to saved return address
 	ldr r13, =ret_addr
